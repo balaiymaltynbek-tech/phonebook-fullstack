@@ -6,7 +6,7 @@ const App = () => {
   const [persons, setPersons] = useState([])
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState(null)
 
   useEffect(() => {
     personService
@@ -15,13 +15,18 @@ const App = () => {
         setPersons(initialPersons)
       })
       .catch(error => {
-        console.log('Error loading persons:', error)
+        console.error('Error loading persons:', error)
+        setErrorMessage('Something went wrong')
       })
   }, [])
 
-  // Add a new person
   const addPerson = (event) => {
     event.preventDefault()
+
+    if (!newName || !newNumber) {
+      setErrorMessage('Please enter both name and number')
+      return
+    }
 
     const personObject = {
       name: newName,
@@ -34,42 +39,35 @@ const App = () => {
         setPersons(prevPersons => prevPersons.concat(returnedPerson))
         setNewName('')
         setNewNumber('')
-        setErrorMessage('')
+        setErrorMessage(null)
       })
       .catch(error => {
-        const message = error.response?.data?.error || 'Something went wrong'
+        console.error('Error adding person:', error)
+
+        const message =
+          error.response?.data?.error || 'Failed to add person'
 
         setErrorMessage(message)
-        setTimeout(() => {
-          setErrorMessage('')
-        }, 5000)
       })
   }
 
-  // Delete a person
   const deletePerson = (id, name) => {
     if (window.confirm(`Delete ${name}?`)) {
       personService
         .remove(id)
         .then(() => {
           setPersons(prevPersons =>
-            prevPersons.filter(person => String(person.id) !== String(id))
+            prevPersons.filter(person =>
+              String(person._id || person.id) !== String(id)
+            )
           )
+          setErrorMessage(null)
         })
         .catch(error => {
-          console.log('Error deleting person:', error)
+          console.error('Error deleting person:', error)
+          setErrorMessage(`Failed to delete ${name}`)
         })
     }
-  }
-
-  // Handle name input
-  const handleNameChange = (event) => {
-    setNewName(event.target.value)
-  }
-
-  // Handle number input
-  const handleNumberChange = (event) => {
-    setNewNumber(event.target.value)
   }
 
   return (
@@ -79,10 +77,9 @@ const App = () => {
       {errorMessage && (
         <div style={{
           color: 'red',
-          background: '#fdd',
-          border: '1px solid red',
+          background: '#ffdddd',
           padding: '10px',
-          margin: '10px 0'
+          marginBottom: '10px'
         }}>
           {errorMessage}
         </div>
@@ -90,16 +87,18 @@ const App = () => {
 
       <form onSubmit={addPerson}>
         <div>
-          name: <input
+          name:
+          <input
             value={newName}
-            onChange={handleNameChange}
+            onChange={event => setNewName(event.target.value)}
           />
         </div>
 
         <div>
-          number: <input
+          number:
+          <input
             value={newNumber}
-            onChange={handleNumberChange}
+            onChange={event => setNewNumber(event.target.value)}
           />
         </div>
 
@@ -108,14 +107,18 @@ const App = () => {
 
       <h2>Numbers</h2>
 
-      {persons.map(person =>
-        <div key={person.id}>
+      {persons.map(person => (
+        <div key={person._id || person.id}>
           {person.name} {person.number}
-          <button onClick={() => deletePerson(person.id, person.name)}>
+          <button
+            onClick={() =>
+              deletePerson(person._id || person.id, person.name)
+            }
+          >
             delete
           </button>
         </div>
-      )}
+      ))}
     </div>
   )
 }
